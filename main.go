@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -11,6 +12,10 @@ import (
 var excludedIPs []net.IP
 
 func main() {
+	if len(os.Args) > 1 {
+		getRoute(net.ParseIP(os.Args[1]))
+	}
+
 	initExcludedIPs()
 	ips, err := listLocalAddresses(netlink.FAMILY_V4)
 	if err != nil {
@@ -21,7 +26,6 @@ func main() {
 		fmt.Println("local address = " + ip.String())
 	}
 }
-
 
 func listLocalAddresses(family int) ([]net.IP, error) {
 	addrs, err := netlink.AddrList(nil, family)
@@ -89,8 +93,11 @@ func initExcludedIPs() {
 				}
 			}
 			if skip {
+				fmt.Println("Skip = " + l.Attrs().Name)
 				continue
 			}
+		} else {
+			fmt.Println("Not up = " + l.Attrs().Name + " = " + string(l.Attrs().OperState))
 		}
 		addr, err := netlink.AddrList(l, netlink.FAMILY_ALL)
 		if err != nil {
@@ -100,4 +107,16 @@ func initExcludedIPs() {
 			excludedIPs = append(excludedIPs, a.IP)
 		}
 	}
+}
+
+func getRoute(nodeIP net.IP) {
+	fmt.Println("--- GetRoute ---")
+	routes, err := netlink.RouteGet(nodeIP)
+	if err != nil {
+		panic(err)
+	}
+	for _, route := range routes {
+		fmt.Println(route.String())
+	}
+	fmt.Println("--- GetRoute ---")
 }
